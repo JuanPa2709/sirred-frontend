@@ -1,0 +1,1 @@
+import{A as e,H as t,b as n,s as r}from"./dom-D-0WmHZt.js";var i=n({name:`QTr`,props:{props:Object,noHover:Boolean},setup(n,{slots:i}){let a=e(()=>`q-tr`+(n.props===void 0||n.props.header===!0?``:` `+n.props.__trClass)+(n.noHover===!0?` q-tr--no-hover`:``));return()=>{var e;return t(`tr`,{style:(e=n.props)==null?void 0:e.__trStyle,class:a.value},r(i.default))}}});export{i as t};

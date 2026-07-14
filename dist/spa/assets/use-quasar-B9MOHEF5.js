@@ -1,0 +1,1 @@
+import{U as e}from"./dom-D-0WmHZt.js";function t(){return e(`_q_`)}export{t};

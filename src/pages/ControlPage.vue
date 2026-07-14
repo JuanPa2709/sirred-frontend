@@ -84,6 +84,19 @@
             <div class="text-weight-bold">{{ props.row.docente?.apellidos }}</div>
             <div>{{ props.row.docente?.nombre }}</div>
             <div class="text-caption text-grey-7">CI: {{ props.row.docente?.ci }}</div>
+            <!-- NIT Status badge -->
+            <q-badge v-if="props.row.docente?.estado_nit === 'PENDIENTE'" color="warning" class="q-mt-xs">
+              <q-icon name="pending" size="xs" class="q-mr-xs" />NIT Pendiente
+              <q-tooltip>Este docente tiene verificación de NIT pendiente con el SIAT</q-tooltip>
+            </q-badge>
+            <q-badge v-else-if="props.row.docente?.estado_nit === 'INVALIDO'" color="negative" class="q-mt-xs">
+              <q-icon name="gpp_bad" size="xs" class="q-mr-xs" />NIT Inválido
+              <q-tooltip>El NIT de este docente no tiene actividad de Docencia vigente en el SIAT</q-tooltip>
+            </q-badge>
+            <q-badge v-else-if="!props.row.docente?.estado_nit" color="grey-6" class="q-mt-xs">
+              <q-icon name="shield" size="xs" class="q-mr-xs" />Sin verificar
+              <q-tooltip>Este docente no ha verificado su NIT todavía</q-tooltip>
+            </q-badge>
           </div>
         </q-td>
       </template>

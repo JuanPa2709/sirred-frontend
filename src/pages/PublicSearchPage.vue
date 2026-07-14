@@ -48,6 +48,47 @@
             </q-card-section>
           </q-card>
 
+          <!-- ─── BANNER NIT: Sin verificar (null) ─────────────────────────────── -->
+          <q-banner v-if="!searchResult.nit_info?.estado_nit" rounded
+            class="bg-purple-1 text-purple-9 q-mb-md" style="border: 1.5px solid #7b1fa2">
+            <template v-slot:avatar>
+              <q-icon name="shield" color="purple" size="32px" />
+            </template>
+            <div class="text-weight-bold text-subtitle2">Verificación de NIT Requerida</div>
+            <div class="q-mt-xs">Para habilitar sus pagos, debe verificar su NIT por única vez. Suba su
+              <strong>Documento de Exhibición de NIT</strong> del portal de Impuestos Nacionales (SIAT).</div>
+            <template v-slot:action>
+              <q-btn flat color="purple" label="¿Cómo obtenerlo?" icon="help_outline" class="q-mr-sm"
+                @click="showNitHelpDialog = true" />
+              <q-btn flat color="purple" label="Verificar mi NIT ahora" icon="upload_file"
+                @click="showNitDialog = true" />
+            </template>
+          </q-banner>
+
+          <!-- ─── BANNER NIT: Pendiente ─────────────────────────────────────────── -->
+          <q-banner v-else-if="searchResult.nit_info?.estado_nit === 'PENDIENTE'" rounded
+            class="bg-amber-1 text-amber-9 q-mb-md" style="border: 1.5px solid #f59e0b">
+            <template v-slot:avatar>
+              <q-icon name="pending" color="amber-8" size="28px" />
+            </template>
+            <div class="text-weight-bold">Verificación de NIT Pendiente</div>
+            <div class="text-caption q-mt-xs">No fue posible conectar con Impuestos Nacionales al momento de subir
+              su documento. Su factura puede ser subida, pero el pago quedará en revisión hasta que un
+              administrador verifique su NIT manualmente.</div>
+          </q-banner>
+
+          <!-- ─── BANNER NIT: Inválido ──────────────────────────────────────────── -->
+          <q-banner v-else-if="searchResult.nit_info?.estado_nit === 'INVALIDO'" rounded
+            class="bg-red-1 text-red-9 q-mb-md" style="border: 1.5px solid #c62828">
+            <template v-slot:avatar>
+              <q-icon name="gpp_bad" color="red" size="28px" />
+            </template>
+            <div class="text-weight-bold">NIT con Actividad de Docencia No Vigente</div>
+            <div class="text-caption q-mt-xs">Según el SIAT (Impuestos Nacionales), su NIT no cuenta con la
+              actividad económica de <strong>Docencia</strong> vigente. No puede subir facturas hasta regularizar
+              su situación en Impuestos Nacionales.</div>
+          </q-banner>
+
           <!-- Banner Periodo de Facturación -->
           <q-banner v-if="searchResult.periodo_facturacion?.fecha_inicio" rounded class="q-mb-md"
             :class="getPeriodoBannerClass()">
@@ -89,8 +130,24 @@
               </q-card-section>
 
               <q-card-section v-if="facturacion.tipo_contrato === 'FACTURACION'">
-                <!-- Estado REZAGADO -->
-                <q-banner v-if="facturacion.estado_subida === 'REZAGADO'" rounded
+                <!-- NIT INVALIDO: bloqueo dentro de la card de facturacion -->
+                <q-banner v-if="searchResult.nit_info?.estado_nit === 'INVALIDO'" rounded
+                  class="bg-red-1 text-red-9 q-mb-md">
+                  <template v-slot:avatar><q-icon name="block" color="red" /></template>
+                  <div class="text-weight-bold">Subida de Factura Bloqueada</div>
+                  <div>Regularice su actividad de Docencia en el SIAT antes de continuar.</div>
+                </q-banner>
+
+                <!-- NIT SIN VERIFICAR: bloqueo dentro de la card de facturacion -->
+                <q-banner v-else-if="!searchResult.nit_info?.estado_nit" rounded
+                  class="bg-purple-1 text-purple-9 q-mb-md">
+                  <template v-slot:avatar><q-icon name="shield" color="purple" /></template>
+                  <div class="text-weight-bold">Verifique su NIT para habilitar esta opción</div>
+                  <div>Haga clic en el botón "Verificar mi NIT ahora" que aparece arriba.</div>
+                </q-banner>
+
+                <!-- Estado REZAGADO (solo si NIT es válido) -->
+                  <q-banner v-if="facturacion.estado_subida === 'REZAGADO'" rounded
                   class="bg-orange-1 text-orange-9 q-mb-md">
                   <template v-slot:avatar>
                     <q-icon name="schedule" color="orange" />
@@ -278,8 +335,123 @@
 
     </q-card>
 
+    <!-- Dialogo de Verificación de NIT -->
+    <q-dialog v-model="showNitDialog" persistent>
+      <q-card style="min-width: 440px; max-width: 95vw; border-radius: 16px;">
+        <q-card-section class="bg-purple text-white q-py-md">
+          <div class="row items-center no-wrap">
+            <q-icon name="shield" size="28px" class="q-mr-sm" />
+            <div>
+              <div class="text-h6 text-weight-bold">Verificación de NIT</div>
+              <div class="text-caption opacity-80">Solo se realiza una vez</div>
+            </div>
+          </div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-md">
+          <!-- Step 1: Instructions -->
+          <div v-if="nitStep === 1">
+            <q-banner rounded class="bg-blue-1 text-blue-9 q-mb-md">
+              <template v-slot:avatar>
+                <q-icon name="info" color="blue" />
+              </template>
+              <div class="text-weight-bold">¿Qué documento necesito?</div>
+              <ul class="q-pl-md q-my-xs text-caption">
+                <li>Ingrese al portal <strong>siat.impuestos.gob.bo</strong></li>
+                <li>Busque su NIT y descargue el <strong>Documento de Exhibición</strong></li>
+                <li>Súbalo aquí en formato PDF, JPG o PNG (máx. 5MB)</li>
+                <li>Debe mostrar claramente el <strong>código QR</strong></li>
+              </ul>
+            </q-banner>
+
+            <q-file v-model="nitArchivo" label="Seleccionar Documento de Exhibición NIT"
+              outlined dense accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp" max-file-size="5242880"
+              @rejected="onNitRejected">
+              <template v-slot:prepend>
+                <q-icon name="upload_file" />
+              </template>
+            </q-file>
+            <div class="text-caption text-grey-7 q-mt-xs">Formatos: PDF, JPG, PNG, GIF, BMP — Máx. 5MB</div>
+          </div>
+
+          <!-- Step 2: Processing -->
+          <div v-if="nitStep === 2" class="text-center q-pa-md">
+            <q-spinner-hourglass color="purple" size="48px" />
+            <div class="text-subtitle2 q-mt-md">Leyendo código QR y consultando Impuestos Nacionales...</div>
+            <div class="text-caption text-grey-6 q-mt-xs">Esto puede tardar unos segundos</div>
+          </div>
+
+          <!-- Step 3: Result -->
+          <div v-if="nitStep === 3">
+            <q-banner rounded :class="nitResultado?.estado_nit === 'VERIFICADO'
+              ? 'bg-green-1 text-green-9'
+              : nitResultado?.estado_nit === 'PENDIENTE'
+                ? 'bg-amber-1 text-amber-9'
+                : 'bg-red-1 text-red-9'">
+              <template v-slot:avatar>
+                <q-icon
+                  :name="nitResultado?.estado_nit === 'VERIFICADO' ? 'check_circle' : nitResultado?.estado_nit === 'PENDIENTE' ? 'pending' : 'cancel'"
+                  :color="nitResultado?.estado_nit === 'VERIFICADO' ? 'positive' : nitResultado?.estado_nit === 'PENDIENTE' ? 'amber-8' : 'negative'"
+                  size="28px" />
+              </template>
+              <!-- eslint-disable-next-line vue/no-v-html -->
+              <div v-html="nitMensaje"></div>
+            </q-banner>
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pb-md q-px-md">
+          <q-btn v-if="nitStep !== 2" flat label="Cerrar" color="grey-7" v-close-popup
+            @click="nitStep = 1; nitArchivo = null" />
+          <q-btn v-if="nitStep === 1" label="Enviar para Verificación" color="purple" icon="send"
+            :disable="!nitArchivo" :loading="uploadingNit" @click="uploadNitDocumento" unelevated />
+          <q-btn v-if="nitStep === 3" label="Intentar de nuevo" color="purple" unelevated
+            @click="nitStep = 1; nitArchivo = null" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Dialogo de Ayuda para obtener NIT -->
+    <q-dialog v-model="showNitHelpDialog">
+      <q-card style="min-width: 440px; max-width: 95vw; border-radius: 12px;">
+        <q-card-section class="bg-blue-8 text-white row items-center q-py-sm">
+          <q-icon name="help_outline" size="24px" class="q-mr-sm" />
+          <div class="text-h6">¿Cómo obtener el Documento de Exhibición?</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        
+        <q-card-section class="q-pt-md">
+          <p class="text-body2 text-grey-9 q-mb-md">Siga estos pasos para descargar su Documento de Exhibición de NIT desde el portal oficial de Impuestos Nacionales:</p>
+          <q-list bordered separator class="rounded-borders q-mb-md">
+            <q-item>
+              <q-item-section avatar><q-avatar size="md" color="blue-1" text-color="blue-8">1</q-avatar></q-item-section>
+              <q-item-section>Ingrese al <strong>SIAT en Línea</strong> e inicie sesión con sus credenciales.</q-item-section>
+            </q-item>
+            <q-item>
+              <q-item-section avatar><q-avatar size="md" color="blue-1" text-color="blue-8">2</q-avatar></q-item-section>
+              <q-item-section>En el menú principal, ingrese al módulo <strong>Padrón Biométrico Digital</strong>.</q-item-section>
+            </q-item>
+            <q-item>
+              <q-item-section avatar><q-avatar size="md" color="blue-1" text-color="blue-8">3</q-avatar></q-item-section>
+              <q-item-section>Seleccione <strong>Reimpresión de Certificados</strong> y luego <strong>Documento de Exhibición</strong>.</q-item-section>
+            </q-item>
+            <q-item>
+              <q-item-section avatar><q-avatar size="md" color="blue-1" text-color="blue-8">4</q-avatar></q-item-section>
+              <q-item-section>Descargue el archivo en formato PDF (o tome una captura de pantalla clara del código QR) y súbalo aquí.</q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+
+        <q-card-actions align="center" class="q-pb-md">
+          <q-btn outline color="primary" icon="open_in_new" label="Ir al Portal del SIAT" href="https://login.impuestos.gob.bo/" target="_blank" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <!-- Dialogo de Rechazo de Factura -->
     <q-dialog v-model="showRejectDialog">
+
       <q-card style="min-width: 400px; max-width: 90vw;">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-h6 text-negative row items-center">
@@ -337,6 +509,7 @@ import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { api } from 'boot/axios'
 import { useRoute, useRouter } from 'vue-router'
+import jsQR from 'jsqr'
 
 export default {
   name: 'PublicSearchPage',
@@ -353,6 +526,15 @@ export default {
     // Dialog state
     const showRejectDialog = ref(false)
     const rejectDetalles = ref([])
+
+    // NIT verification dialog state
+    const showNitDialog = ref(false)
+    const showNitHelpDialog = ref(false)
+    const nitArchivo = ref(null)
+    const uploadingNit = ref(false)
+    const nitStep = ref(1)       // 1=form, 2=loading, 3=result
+    const nitResultado = ref(null)
+    const nitMensaje = ref('')
 
     const searchByCI = async (refresh = false) => {
       searching.value = true
@@ -388,6 +570,112 @@ export default {
       } finally {
         searching.value = false
       }
+    }
+
+    // ─── Local QR Extraction helper using jsQR ──────────────────────────────
+    const extractQRLocally = (file) => {
+      return new Promise((resolve) => {
+        // Only process images (skip PDF for local JS extraction)
+        if (!file.type.startsWith('image/')) {
+          resolve(null)
+          return
+        }
+
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const img = new Image()
+          img.onload = () => {
+            const canvas = document.createElement('canvas')
+            const ctx = canvas.getContext('2d')
+            // Scale down slightly for performance and better jsQR parsing on large photos
+            const maxDim = 1500
+            let width = img.width
+            let height = img.height
+            if (width > maxDim || height > maxDim) {
+              const ratio = Math.min(maxDim / width, maxDim / height)
+              width = Math.round(width * ratio)
+              height = Math.round(height * ratio)
+            }
+            canvas.width = width
+            canvas.height = height
+            ctx.drawImage(img, 0, 0, width, height)
+            
+            const imageData = ctx.getImageData(0, 0, width, height)
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+              inversionAttempts: "dontInvert",
+            })
+
+            if (code && code.data && code.data.includes('impuestos.gob.bo')) {
+              resolve(code.data)
+            } else {
+              resolve(null)
+            }
+          }
+          img.onerror = () => resolve(null)
+          img.src = e.target.result
+        }
+        reader.onerror = () => resolve(null)
+        reader.readAsDataURL(file)
+      })
+    }
+
+    // ─── Upload NIT Exhibicion Document ─────────────────────────────────────────
+    const uploadNitDocumento = async () => {
+      if (!nitArchivo.value || !searchResult.value?.docente?.id) return
+
+      nitStep.value = 2   // Show loading spinner
+      uploadingNit.value = true
+      nitResultado.value = null
+      nitMensaje.value = ''
+
+      try {
+        const formData = new FormData()
+        formData.append('nit_documento', nitArchivo.value)
+
+        // Intentar extraer QR en el lado del cliente (Navegador)
+        const localQrUrl = await extractQRLocally(nitArchivo.value)
+        if (localQrUrl) {
+          formData.append('siat_url', localQrUrl)
+        }
+
+        const response = await api.post(
+          `/public/docentes/${searchResult.value.docente.id}/verificar-nit`,
+          formData,
+          { headers: { 'Content-Type': 'multipart/form-data' } }
+        )
+
+        if (response.data.estado_nit === 'VERIFICADO' || response.data.estado_nit === 'PENDIENTE') {
+          $q.notify({
+            type: response.data.estado_nit === 'VERIFICADO' ? 'positive' : 'warning',
+            message: response.data.message,
+            html: true,
+            timeout: 5000,
+            position: 'top'
+          })
+          showNitDialog.value = false
+          searchByCI(true)
+          setTimeout(() => {
+            nitStep.value = 1
+            nitArchivo.value = null
+          }, 300)
+        } else {
+          nitResultado.value = response.data
+          nitMensaje.value = response.data.message
+          nitStep.value = 3
+        }
+
+      } catch (error) {
+        const errorData = error.response?.data
+        nitResultado.value = { estado_nit: errorData?.estado_nit || 'INVALIDO' }
+        nitMensaje.value = errorData?.message || 'Error al procesar el documento. Intente nuevamente.'
+        nitStep.value = 3
+      } finally {
+        uploadingNit.value = false
+      }
+    }
+
+    const onNitRejected = () => {
+      $q.notify({ type: 'negative', message: 'El archivo debe ser PDF/imagen y no superar 5MB' })
     }
 
     const uploadFactura = async (facturacion) => {
@@ -555,6 +843,16 @@ export default {
       getPeriodoTitle,
       showRejectDialog,
       rejectDetalles,
+      // NIT verification
+      showNitDialog,
+      showNitHelpDialog,
+      nitArchivo,
+      uploadingNit,
+      nitStep,
+      nitResultado,
+      nitMensaje,
+      uploadNitDocumento,
+      onNitRejected,
       viewFactura: (facturacion) => {
         if (!facturacion.factura_path) return
         // Get base URL and ensure it doesn't end with /api
@@ -566,6 +864,7 @@ export default {
         window.open(url, '_blank')
       }
     }
+
   }
 }
 </script>

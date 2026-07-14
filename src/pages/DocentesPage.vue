@@ -46,6 +46,19 @@
                         clearable
                     />
                 </div>
+
+                <div class="col-12 col-sm-6 col-md-3">
+                    <q-select
+                        v-model="filterEstadoNit"
+                        :options="estadoNitOptions"
+                        outlined
+                        dense
+                        emit-value
+                        map-options
+                        label="Estado NIT"
+                        clearable
+                    />
+                </div>
             </div>
 
             <!-- Estadísticas -->
@@ -72,6 +85,30 @@
                     <q-card flat bordered class="text-center q-pa-sm">
                         <div class="text-h6 text-positive">{{ stats.activos }}</div>
                         <div class="text-caption text-grey">Activos</div>
+                    </q-card>
+                </div>
+                <div class="col-6 col-sm-3">
+                    <q-card flat bordered class="text-center q-pa-sm">
+                        <div class="text-h6 text-positive">{{ stats.nitVerificados }}</div>
+                        <div class="text-caption text-grey">NIT Verificado</div>
+                    </q-card>
+                </div>
+                <div class="col-6 col-sm-3">
+                    <q-card flat bordered class="text-center q-pa-sm">
+                        <div class="text-h6 text-warning">{{ stats.nitPendientes }}</div>
+                        <div class="text-caption text-grey">NIT Pendiente</div>
+                    </q-card>
+                </div>
+                <div class="col-6 col-sm-3">
+                    <q-card flat bordered class="text-center q-pa-sm">
+                        <div class="text-h6 text-negative">{{ stats.nitInvalidos }}</div>
+                        <div class="text-caption text-grey">NIT Inválido</div>
+                    </q-card>
+                </div>
+                <div class="col-6 col-sm-3">
+                    <q-card flat bordered class="text-center q-pa-sm">
+                        <div class="text-h6 text-grey">{{ stats.nitSinVerificar }}</div>
+                        <div class="text-caption text-grey">Sin Verificar</div>
                     </q-card>
                 </div>
             </div>
@@ -104,10 +141,49 @@
                 </q-td>
             </template>
 
+            <template v-slot:body-cell-estado_nit="props">
+                <q-td :props="props">
+                    <q-badge v-if="props.row.estado_nit === 'VERIFICADO'" color="positive">
+                        <q-icon name="check_circle" size="xs" class="q-mr-xs" />VERIFICADO
+                    </q-badge>
+                    <q-badge v-else-if="props.row.estado_nit === 'PENDIENTE'" color="warning">
+                        <q-icon name="pending" size="xs" class="q-mr-xs" />PENDIENTE
+                    </q-badge>
+                    <q-badge v-else-if="props.row.estado_nit === 'INVALIDO'" color="negative">
+                        <q-icon name="cancel" size="xs" class="q-mr-xs" />INVÁLIDO
+                    </q-badge>
+                    <q-badge v-else color="grey">
+                        <q-icon name="help" size="xs" class="q-mr-xs" />SIN VERIFICAR
+                    </q-badge>
+                </q-td>
+            </template>
+
             <template v-slot:body-cell-actions="props">
                 <q-td :props="props">
                     <q-btn flat dense color="primary" icon="edit" @click="openEditDialog(props.row)">
                         <q-tooltip>Editar Tipo de Compra</q-tooltip>
+                    </q-btn>
+                    <q-btn flat dense color="purple" icon="badge" @click="verDocumentoNit(props.row)"
+                        :disable="!props.row.nit_documento_path">
+                        <q-tooltip>{{ props.row.nit_documento_path ? 'Ver Documento NIT' : 'Sin documento NIT subido' }}</q-tooltip>
+                    </q-btn>
+                    <q-btn flat dense color="teal" icon="qr_code_scanner" @click="verSiatUrl(props.row)"
+                        v-if="props.row.enlace_verificacion_nit">
+                        <q-tooltip>Abrir enlace del QR (SIAT)</q-tooltip>
+                    </q-btn>
+                    <q-btn flat dense color="info" icon="refresh" @click="reintentarVerificacion(props.row)"
+                        :disable="!props.row.enlace_verificacion_nit || props.row.estado_nit === 'VERIFICADO'">
+                        <q-tooltip>Reintentar Verificación SIAT</q-tooltip>
+                    </q-btn>
+                    <q-btn flat dense color="positive" icon="verified_user"
+                        @click="aprobarNitManual(props.row, 'VERIFICADO')"
+                        v-if="props.row.estado_nit !== 'VERIFICADO' && props.row.nit_documento_path">
+                        <q-tooltip>Aprobar NIT Manualmente</q-tooltip>
+                    </q-btn>
+                    <q-btn flat dense color="negative" icon="gpp_bad"
+                        @click="aprobarNitManual(props.row, 'INVALIDO')"
+                        v-if="props.row.estado_nit !== 'INVALIDO' && props.row.nit_documento_path">
+                        <q-tooltip>Marcar NIT como Inválido</q-tooltip>
                     </q-btn>
                 </q-td>
             </template>
@@ -165,6 +241,7 @@ export default {
         const searchQuery = ref('')
         const filterTipoCompra = ref(null)
         const filterEstado = ref(null)
+        const filterEstadoNit = ref(null)
         const editForm = ref({ tipo_compra: 1 })
 
         const columns = [
@@ -173,6 +250,7 @@ export default {
             { name: 'apellidos', label: 'Apellidos', field: 'apellidos', align: 'left', sortable: true },
             { name: 'estado', label: 'Estado', field: 'estado', align: 'center' },
             { name: 'tipo_compra', label: 'Tipo de Compra', field: 'tipo_compra', align: 'center', sortable: true },
+            { name: 'estado_nit', label: 'Estado NIT', field: 'estado_nit', align: 'center', sortable: true },
             { name: 'actions', label: 'Acciones', align: 'center' }
         ]
 
@@ -189,6 +267,13 @@ export default {
         const estadoOptions = [
             { label: 'Activo', value: 1 },
             { label: 'Inactivo', value: 0 }
+        ]
+
+        const estadoNitOptions = [
+            { label: '✅ Verificado', value: 'VERIFICADO' },
+            { label: '⏳ Pendiente', value: 'PENDIENTE' },
+            { label: '❌ Inválido', value: 'INVALIDO' },
+            { label: '⚫ Sin Verificar', value: 'NULL' },
         ]
 
         const filteredDocentes = computed(() => {
@@ -214,6 +299,15 @@ export default {
                 result = result.filter(d => d.estado === filterEstado.value)
             }
 
+            // Filtro por estado NIT
+            if (filterEstadoNit.value !== null && filterEstadoNit.value !== undefined) {
+                if (filterEstadoNit.value === 'NULL') {
+                    result = result.filter(d => d.estado_nit === null)
+                } else {
+                    result = result.filter(d => d.estado_nit === filterEstadoNit.value)
+                }
+            }
+
             return result
         })
 
@@ -223,7 +317,11 @@ export default {
                 total: all.length,
                 tipo1: all.filter(d => d.tipo_compra === 1).length,
                 tipo2: all.filter(d => d.tipo_compra === 2).length,
-                activos: all.filter(d => d.estado === 1).length
+                activos: all.filter(d => d.estado === 1).length,
+                nitVerificados: all.filter(d => d.estado_nit === 'VERIFICADO').length,
+                nitPendientes: all.filter(d => d.estado_nit === 'PENDIENTE').length,
+                nitInvalidos: all.filter(d => d.estado_nit === 'INVALIDO').length,
+                nitSinVerificar: all.filter(d => d.estado_nit === null).length,
             }
         })
 
@@ -269,6 +367,66 @@ export default {
             loadDocentes()
         })
 
+        // ─── NIT Admin Actions ─────────────────────────────────────────────────
+
+        const verDocumentoNit = (docente) => {
+            if (!docente.nit_documento_path) return
+            let baseUrl = api.defaults.baseURL
+            if (baseUrl.endsWith('/api')) baseUrl = baseUrl.slice(0, -4)
+            const url = `${baseUrl}/storage/${docente.nit_documento_path}`
+            window.open(url, '_blank')
+        }
+
+        const verSiatUrl = (docente) => {
+            if (docente.enlace_verificacion_nit) {
+                window.open(docente.enlace_verificacion_nit, '_blank')
+            }
+        }
+
+        const reintentarVerificacion = async (docente) => {
+            $q.loading.show({
+                message: `Reintentando validación en el SIAT para ${docente.nombre}...`,
+                spinnerColor: 'primary'
+            })
+            const token = localStorage.getItem('token')
+            try {
+                const response = await api.post(
+                    `/docentes/${docente.id}/reintentar-verificacion`,
+                    {},
+                    { headers: { Authorization: `Bearer ${token}` } }
+                )
+                $q.notify({ type: response.data.estado_nit === 'VERIFICADO' ? 'positive' : 'warning', message: response.data.message, html: true })
+                loadDocentes()
+            } catch (error) {
+                $q.notify({ type: 'negative', message: error.response?.data?.message || 'Error al verificar', html: true })
+            } finally {
+                $q.loading.hide()
+            }
+        }
+
+        const aprobarNitManual = async (docente, estadoNit) => {
+            const accion = estadoNit === 'VERIFICADO' ? 'aprobar' : 'marcar como inválido'
+            $q.dialog({
+                title: `Confirmación`,
+                message: `¿Desea ${accion} el NIT de ${docente.nombre} ${docente.apellidos}?`,
+                cancel: true,
+                persistent: true
+            }).onOk(async () => {
+                const token = localStorage.getItem('token')
+                try {
+                    const response = await api.post(
+                        `/docentes/${docente.id}/verificar-nit-manual`,
+                        { estado_nit: estadoNit },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    )
+                    $q.notify({ type: estadoNit === 'VERIFICADO' ? 'positive' : 'negative', message: response.data.message })
+                    loadDocentes()
+                } catch (error) {
+                    $q.notify({ type: 'negative', message: error.response?.data?.message || 'Error al actualizar NIT' })
+                }
+            })
+        }
+
         return {
             docentes,
             loading,
@@ -278,15 +436,21 @@ export default {
             searchQuery,
             filterTipoCompra,
             filterEstado,
+            filterEstadoNit,
             editForm,
             columns,
             tipoCompraOptions,
             tipoCompraEditOptions,
             estadoOptions,
+            estadoNitOptions,
             filteredDocentes,
             stats,
             openEditDialog,
-            saveDocente
+            saveDocente,
+            verDocumentoNit,
+            verSiatUrl,
+            reintentarVerificacion,
+            aprobarNitManual,
         }
     }
 }
