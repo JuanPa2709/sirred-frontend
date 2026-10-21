@@ -147,6 +147,10 @@
             <q-icon name="schedule" size="xs" class="q-mr-xs" />
             Rezagado
           </q-badge>
+          <q-badge v-else-if="props.row.estado_subida === 'RECHAZADO'" color="warning" text-color="black">
+            <q-icon name="warning" size="xs" class="q-mr-xs" />
+            Rechazado (Auto)
+          </q-badge>
         </q-td>
       </template>
 
@@ -281,7 +285,8 @@ export default {
       { label: 'Subidas', value: 'SUBIDA' },
       { label: 'Aprobadas', value: 'APROBADO' },
       { label: 'Denegadas', value: 'DENEGADO' },
-      { label: 'Rezagados', value: 'REZAGADO' }
+      { label: 'Rezagadas', value: 'REZAGADO' },
+      { label: 'Rechazadas (Auto)', value: 'RECHAZADO' }
     ]
 
     const columns = [

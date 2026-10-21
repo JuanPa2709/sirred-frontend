@@ -171,18 +171,14 @@
                         v-if="props.row.enlace_verificacion_nit">
                         <q-tooltip>Abrir enlace del QR (SIAT)</q-tooltip>
                     </q-btn>
-                    <q-btn flat dense color="info" icon="refresh" @click="reintentarVerificacion(props.row)"
-                        :disable="!props.row.enlace_verificacion_nit || props.row.estado_nit === 'VERIFICADO'">
-                        <q-tooltip>Reintentar Verificación SIAT</q-tooltip>
-                    </q-btn>
                     <q-btn flat dense color="positive" icon="verified_user"
                         @click="aprobarNitManual(props.row, 'VERIFICADO')"
-                        v-if="props.row.estado_nit !== 'VERIFICADO' && props.row.nit_documento_path">
+                        v-if="props.row.estado_nit !== 'VERIFICADO'">
                         <q-tooltip>Aprobar NIT Manualmente</q-tooltip>
                     </q-btn>
                     <q-btn flat dense color="negative" icon="gpp_bad"
                         @click="aprobarNitManual(props.row, 'INVALIDO')"
-                        v-if="props.row.estado_nit !== 'INVALIDO' && props.row.nit_documento_path">
+                        v-if="props.row.estado_nit !== 'INVALIDO'">
                         <q-tooltip>Marcar NIT como Inválido</q-tooltip>
                     </q-btn>
                 </q-td>

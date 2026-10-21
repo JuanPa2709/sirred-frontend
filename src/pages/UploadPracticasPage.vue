@@ -197,7 +197,13 @@ export default {
 
         const formatDate = (dateString) => {
             if (!dateString) return ''
-            const date = new Date(dateString + 'T00:00:00')
+            let date
+            if (dateString.includes('T')) {
+                date = new Date(dateString)
+            } else {
+                date = new Date(dateString + 'T00:00:00')
+            }
+            if (isNaN(date.getTime())) return ''
             const day = String(date.getDate()).padStart(2, '0')
             const month = String(date.getMonth() + 1).padStart(2, '0')
             const year = date.getFullYear()

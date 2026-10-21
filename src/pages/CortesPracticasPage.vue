@@ -3,7 +3,32 @@
         <div class="q-mb-md">
             <div class="row justify-between items-center q-mb-md">
                 <div class="text-h5 text-weight-medium">Gestión de Cortes (Prácticas)</div>
-                <q-btn color="primary" label="Nuevo Corte" icon="add" @click="openDialog()" unelevated />
+                <div class="row q-gutter-sm items-center">
+                    <q-select
+                        v-model="selectedGestion"
+                        :options="gestiones"
+                        option-label="nombre"
+                        label="Gestión Académica"
+                        outlined
+                        dense
+                        bg-color="white"
+                        style="min-width: 200px"
+                        @update:model-value="loadCortes"
+                        :loading="loadingGestiones"
+                    >
+                        <template v-slot:option="scope">
+                            <q-item v-bind="scope.itemProps">
+                                <q-item-section>
+                                    <q-item-label>{{ scope.opt.nombre }}</q-item-label>
+                                    <q-item-label caption>
+                                        {{ scope.opt.estado ? 'Activa' : 'Inactiva' }}
+                                    </q-item-label>
+                                </q-item-section>
+                            </q-item>
+                        </template>
+                    </q-select>
+                    <q-btn color="primary" label="Nuevo Corte" icon="add" @click="openDialog()" unelevated :disable="!selectedGestion" />
+                </div>
             </div>
 
             <q-input
@@ -62,6 +87,16 @@
                             class="q-mb-md" :rules="[val => !!val || 'Requerido']" />
                         <q-input v-model="form.fecha_fin" label="Fecha de Fin" type="date" outlined dense
                             class="q-mb-md" />
+
+                        <q-separator class="q-my-sm" />
+                        <div class="text-subtitle2 text-primary q-mb-sm">Periodo de Facturación</div>
+                        <div class="row q-gutter-sm q-mb-md">
+                            <q-input v-model="form.fecha_inicio_facturacion" label="Inicio Facturación" type="date" outlined dense
+                                class="col" hint="Desde esta fecha" />
+                            <q-input v-model="form.fecha_fin_facturacion" label="Fin Facturación" type="date" outlined dense
+                                class="col" hint="Hasta esta fecha" />
+                        </div>
+
                         <q-toggle v-model="form.estado" label="Activar este corte" color="positive" class="q-mb-md" />
                         <q-banner v-if="form.estado" class="bg-info text-white q-mb-md">
                             <template v-slot:avatar>
@@ -91,16 +126,25 @@ export default {
     setup() {
         const $q = useQuasar()
         const cortes = ref([])
+        const gestiones = ref([])
+        const selectedGestion = ref(null)
+        const loadingGestiones = ref(false)
         const loading = ref(false)
         const saving = ref(false)
         const showDialog = ref(false)
         const editMode = ref(false)
-        const form = ref({ nombre: '', fecha_inicio: '', fecha_fin: '', estado: false })
+        const form = ref({ nombre: '', fecha_inicio: '', fecha_fin: '', fecha_inicio_facturacion: '', fecha_fin_facturacion: '', estado: false })
         const searchQuery = ref('')
 
         const formatDate = (dateString) => {
             if (!dateString) return ''
-            const date = new Date(dateString + 'T00:00:00')
+            let date
+            if (dateString.includes('T')) {
+                date = new Date(dateString)
+            } else {
+                date = new Date(dateString + 'T00:00:00')
+            }
+            if (isNaN(date.getTime())) return ''
             const day = String(date.getDate()).padStart(2, '0')
             const month = String(date.getMonth() + 1).padStart(2, '0')
             const year = date.getFullYear()
@@ -108,10 +152,10 @@ export default {
         }
 
         const columns = [
-            { name: 'nombre', label: 'Nombre', field: 'nombre', align: 'left', sortable: true },
+            { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
             {
                 name: 'fecha_inicio',
-                label: 'Fecha Inicio',
+                label: 'INICIO',
                 field: 'fecha_inicio',
                 align: 'left',
                 sortable: true,
@@ -119,14 +163,23 @@ export default {
             },
             {
                 name: 'fecha_fin',
-                label: 'Fecha Fin',
+                label: 'FIN',
                 field: 'fecha_fin',
                 align: 'left',
                 sortable: true,
                 format: val => formatDate(val)
             },
-            { name: 'estado', label: 'Estado', field: 'estado', align: 'center' },
-            { name: 'actions', label: 'Acciones', align: 'center' }
+            {
+                name: 'periodo_facturacion',
+                label: 'FACTURACIÓN',
+                align: 'left',
+                format: (val, row) => {
+                    if (!row.fecha_inicio_facturacion || !row.fecha_fin_facturacion) return 'No definido'
+                    return `${formatDate(row.fecha_inicio_facturacion)} - ${formatDate(row.fecha_fin_facturacion)}`
+                }
+            },
+            { name: 'estado', label: 'ESTADO', field: 'estado', align: 'center' },
+            { name: 'actions', label: 'ACCIONES', align: 'center' }
         ]
 
         const filteredCortes = computed(() => {
@@ -140,12 +193,36 @@ export default {
             )
         })
 
+        const loadGestiones = async () => {
+            loadingGestiones.value = true
+            try {
+                const token = localStorage.getItem('token')
+                const response = await api.get('/gestiones', {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+                gestiones.value = response.data
+                if (gestiones.value.length > 0) {
+                    const active = gestiones.value.find(g => g.estado)
+                    selectedGestion.value = active || gestiones.value[0]
+                    loadCortes()
+                }
+            } catch (error) {
+                $q.notify({ type: 'negative', message: 'Error al cargar gestiones' })
+            } finally {
+                loadingGestiones.value = false
+            }
+        }
+
         const loadCortes = async () => {
+            if (!selectedGestion.value) {
+                cortes.value = []
+                return
+            }
             loading.value = true
             try {
                 const token = localStorage.getItem('token')
                 const response = await api.get('/cortes', {
-                    params: { tipo_corte: 'PRACTICA' },
+                    params: { tipo_corte: 'PRACTICA', gestion_id: selectedGestion.value.id },
                     headers: { Authorization: `Bearer ${token}` }
                 })
                 cortes.value = response.data
@@ -161,17 +238,21 @@ export default {
                 form.value = { ...corte, estado: Boolean(corte.estado) }
                 editMode.value = true
             } else {
-                form.value = { nombre: '', fecha_inicio: '', fecha_fin: '', estado: false }
+                form.value = { nombre: '', fecha_inicio: '', fecha_fin: '', fecha_inicio_facturacion: '', fecha_fin_facturacion: '', estado: false }
                 editMode.value = false
             }
             showDialog.value = true
         }
 
         const saveCorte = async () => {
+            if (!selectedGestion.value) {
+                $q.notify({ type: 'warning', message: 'Seleccione una gestión primero' })
+                return
+            }
             saving.value = true
             try {
                 const token = localStorage.getItem('token')
-                const payload = { ...form.value, estado: form.value.estado ? 1 : 0, tipo_corte: 'PRACTICA' }
+                const payload = { ...form.value, estado: form.value.estado ? 1 : 0, tipo_corte: 'PRACTICA', gestion_id: selectedGestion.value.id }
 
                 if (editMode.value) {
                     await api.put(`/cortes/${form.value.id}`, payload, {
@@ -194,11 +275,14 @@ export default {
         }
 
         onMounted(() => {
-            loadCortes()
+            loadGestiones()
         })
 
         return {
             cortes,
+            gestiones,
+            selectedGestion,
+            loadingGestiones,
             loading,
             saving,
             showDialog,

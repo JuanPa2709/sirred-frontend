@@ -48,8 +48,8 @@
             </q-card-section>
           </q-card>
 
-          <!-- ─── BANNER NIT: Sin verificar (null) ─────────────────────────────── -->
-          <q-banner v-if="!searchResult.nit_info?.estado_nit" rounded
+          <!-- ─── BANNER NIT: Sin verificar (null) o Inválido (para reintentar) ─────────────────────────────── -->
+          <q-banner v-if="!searchResult.nit_info?.estado_nit || searchResult.nit_info?.estado_nit === 'INVALIDO'" rounded
             class="bg-purple-1 text-purple-9 q-mb-md" style="border: 1.5px solid #7b1fa2">
             <template v-slot:avatar>
               <q-icon name="shield" color="purple" size="32px" />
@@ -66,7 +66,7 @@
           </q-banner>
 
           <!-- ─── BANNER NIT: Pendiente ─────────────────────────────────────────── -->
-          <q-banner v-else-if="searchResult.nit_info?.estado_nit === 'PENDIENTE'" rounded
+          <q-banner v-if="searchResult.nit_info?.estado_nit === 'PENDIENTE'" rounded
             class="bg-amber-1 text-amber-9 q-mb-md" style="border: 1.5px solid #f59e0b">
             <template v-slot:avatar>
               <q-icon name="pending" color="amber-8" size="28px" />
@@ -78,7 +78,7 @@
           </q-banner>
 
           <!-- ─── BANNER NIT: Inválido ──────────────────────────────────────────── -->
-          <q-banner v-else-if="searchResult.nit_info?.estado_nit === 'INVALIDO'" rounded
+          <q-banner v-if="searchResult.nit_info?.estado_nit === 'INVALIDO'" rounded
             class="bg-red-1 text-red-9 q-mb-md" style="border: 1.5px solid #c62828">
             <template v-slot:avatar>
               <q-icon name="gpp_bad" color="red" size="28px" />
@@ -337,7 +337,7 @@
 
     <!-- Dialogo de Verificación de NIT -->
     <q-dialog v-model="showNitDialog" persistent>
-      <q-card style="min-width: 440px; max-width: 95vw; border-radius: 16px;">
+      <q-card style="width: 440px; max-width: 95vw; border-radius: 16px;">
         <q-card-section class="bg-purple text-white q-py-md">
           <div class="row items-center no-wrap">
             <q-icon name="shield" size="28px" class="q-mr-sm" />
@@ -413,7 +413,7 @@
 
     <!-- Dialogo de Ayuda para obtener NIT -->
     <q-dialog v-model="showNitHelpDialog">
-      <q-card style="min-width: 440px; max-width: 95vw; border-radius: 12px;">
+      <q-card style="width: 440px; max-width: 95vw; border-radius: 12px;">
         <q-card-section class="bg-blue-8 text-white row items-center q-py-sm">
           <q-icon name="help_outline" size="24px" class="q-mr-sm" />
           <div class="text-h6">¿Cómo obtener el Documento de Exhibición?</div>
@@ -452,7 +452,7 @@
     <!-- Dialogo de Rechazo de Factura -->
     <q-dialog v-model="showRejectDialog">
 
-      <q-card style="min-width: 400px; max-width: 90vw;">
+      <q-card style="width: 400px; max-width: 95vw;">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-h6 text-negative row items-center">
             <q-icon name="error_outline" class="q-mr-sm" size="28px" />
